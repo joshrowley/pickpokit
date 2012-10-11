@@ -1,7 +1,8 @@
 require 'open-uri'
 require 'nokogiri'
 require 'sqlite3'
-require './schema.rb'
+
+# Create the database
 
 
 db = SQLite3::Database.new( "pickpokit.db" )
@@ -10,7 +11,7 @@ CREATE table students
 (	id INTEGER PRIMARY KEY,
 first_name TEXT,
 last_name TEXT,
-email TEXT,
+email TEXT DEFAULT "#",
 tag_line TEXT,
 bio TEXT,
 image TEXT,
@@ -30,21 +31,27 @@ SQL
 
 db.execute_batch( sql )
 
+# Index Parser (get URLs for each student)
+
 
 urlnoki = "http://students.flatironschool.com/"
 profile_links = [] 
 
-
 doc = Nokogiri::HTML(open(urlnoki))
-  doc.css().map do |link| 
-  # puts link['href'] 
+doc.xpath('//div[@class="one_third"]/a').map do |link| 
+  profile_links << urlnoki + link['href']
+end
+doc.xpath('//div[@class="one_third last"]/a').map do |link| 
   profile_links << urlnoki + link['href']
 end
 
+# Iterating through all profile_links (array), running scraper, and saving into DB
+
+
+profile_links.delete_if {|url| url.include?('billy')}
 puts profile_links
 
 profile_links.each do |link|
-
 		doc = Nokogiri::HTML(open(link))
 
 
@@ -57,8 +64,9 @@ profile_links.each do |link|
 		app_1 = doc.css('h4')[0].text
 		app_2 = doc.css('h4')[1].text
 		app_3 = doc.css('h4')[2].text
-
-		email = doc.css('.mail a')[0]["href"]
+		unless doc.css('.mail a').empty?
+			email = doc.css('.mail a')[0]["href"]
+		end
 		if email.include?("mailto:")
 			email["mailto:"] = ""
 		end
